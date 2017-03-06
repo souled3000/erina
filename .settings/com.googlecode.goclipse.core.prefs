@@ -1,0 +1,9 @@
+append_projloc_gopath=true
+com.googlecode.goclipse.documentor.path=C\:\\Go\\bin\\godoc.exe
+com.googlecode.goclipse.formatter.path=C\:\\Go\\bin\\gofmt.exe
+com.googlecode.goclipse.goarch=amd64
+com.googlecode.goclipse.goos=linux
+com.googlecode.goclipse.gopath=
+com.googlecode.goclipse.goroot=C\:\\Go
+eclipse.preferences.version=1
+toolchain_prefs.use_project_settings=true
