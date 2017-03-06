@@ -6,7 +6,9 @@ import (
 	"encoding/hex"
 	"net"
 	"octopus/msgs"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/golang/glog"
 )
@@ -98,13 +100,31 @@ func (this *myServer) RunLoop() bool {
 		pMacMd5 := m.Text[:16]
 		//		macmd5 := begmd5(pMac)
 		macmd5 := md5.Sum(pMac)
+
+		t := m.Text[16]
+
 		//校验mac
 		if hex.EncodeToString(pMacMd5) != hex.EncodeToString(macmd5[:]) {
 			glog.Errorf("Mac's md5 checking failed, Mac:%v,%v", hex.EncodeToString(pMac), hex.EncodeToString(pMacMd5))
 			continue
 		}
-
+	again:
+		time.Sleep(100 * time.Millisecond)
 		output, adr := ChooseAUDPServer(pMac)
+		switch t {
+		case 1:
+			if !strings.HasPrefix(adr, "udp") {
+				goto again
+			}
+		case 2:
+			if !strings.HasPrefix(adr, "tcp") {
+				goto again
+			}
+		default:
+			glog.Error("unrecognized :%d", t)
+			continue
+		}
+
 		if adr != "" {
 			go this.Send(peer, output)
 			if glog.V(4) {

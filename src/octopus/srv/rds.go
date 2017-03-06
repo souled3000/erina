@@ -5,13 +5,14 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/garyburd/redigo/redis"
-	"github.com/golang/glog"
 	"octopus/common"
 	"octopus/msgs"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/garyburd/redigo/redis"
+	"github.com/golang/glog"
 )
 
 const (
@@ -370,7 +371,7 @@ func UpdateDevAdr(sess *DevSession) {
 func SetDevAdr(id int64, adr string) {
 	r := Redix.Get()
 	defer r.Close()
-	r.Do("hset", DEVADRKEY, fmt.Sprintf("%d", id), adr)
+	r.Do("hset", DEVADRKEY, fmt.Sprintf("%d|%d", id), SrvType, adr)
 }
 func DelDevAdr(devs []int64) {
 	r := Redix.Get()
@@ -400,7 +401,8 @@ func PushDevOnlineMsgToUsers(sess *DevSession) {
 	b_buf := bytes.NewBuffer([]byte{})
 	binary.Write(b_buf, binary.LittleEndian, sess.devId)
 	DevOnlineMsg = append(DevOnlineMsg, b_buf.Bytes()...)
-	DevOnlineMsg = append(DevOnlineMsg, byte(0 /**内容长度*/))
+	DevOnlineMsg = append(DevOnlineMsg, byte(1 /**内容长度*/))
+	DevOnlineMsg = append(DevOnlineMsg, byte(SrvType))
 	r.Do("publish", []byte("PubCommonMsg:0x35"), DevOnlineMsg)
 	if glog.V(3) {
 		glog.Infof("[PUBDEVONLINEMSG] %s dev[%v] send to usr[%v] for dev online msg, DONE", sess.sid, sess.devId, sess.users)
@@ -434,7 +436,8 @@ func PushDevOfflineMsgToUsers(sess *DevSession) {
 		b_buf := bytes.NewBuffer([]byte{})
 		binary.Write(b_buf, binary.LittleEndian, id)
 		DevOfflineMsg = append(DevOfflineMsg, b_buf.Bytes()...)
-		DevOfflineMsg = append(DevOfflineMsg, byte(0 /**内容长度*/))
+		DevOfflineMsg = append(DevOfflineMsg, byte(1 /**内容长度*/))
+		DevOfflineMsg = append(DevOfflineMsg, byte(SrvType))
 		r.Do("publish", []byte("PubCommonMsg:0x35"), DevOfflineMsg)
 		if glog.V(3) {
 			glog.Infof("[PUBDEVOFFLINEMSG] %v dev[%v][%v][%v] offline,informing usr%v DONE", sess.sid, sess.devId, id, mac, sess.users)
@@ -466,7 +469,8 @@ func PushSubDevOnOfflineMsgToUsers(sess *DevSession, id int64, flag int) {
 	b_buf := bytes.NewBuffer([]byte{})
 	binary.Write(b_buf, binary.LittleEndian, id)
 	DevOfflineMsg = append(DevOfflineMsg, b_buf.Bytes()...)
-	DevOfflineMsg = append(DevOfflineMsg, byte(0 /**内容长度*/))
+	DevOfflineMsg = append(DevOfflineMsg, byte(1 /**内容长度*/))
+	DevOfflineMsg = append(DevOfflineMsg, byte(SrvType))
 	r.Do("publish", []byte("PubCommonMsg:0x35"), DevOfflineMsg)
 	if glog.V(3) {
 		glog.Infof("[SUBDEVONOFF] dev[%v] flag[%d]<0:online;1:offline> usr%v DONE", id, flag, sess.users)

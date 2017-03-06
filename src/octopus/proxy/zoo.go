@@ -6,11 +6,12 @@ import (
 	//	"cloud-base/procinfo"
 	"cloud-base/zk"
 	//	"fmt"
-	"github.com/golang/glog"
-	zookeeper "github.com/samuel/go-zookeeper/zk"
 	"octopus/common"
 	"strings"
 	"time"
+
+	"github.com/golang/glog"
+	zookeeper "github.com/samuel/go-zookeeper/zk"
 )
 
 var (
@@ -96,10 +97,10 @@ func updatingCometQue(zkNodes []string) {
 			var url string
 			switch items[6] {
 			case "1":
-				url = items[0]
+				url = "udp://" + items[0]
 				preRetrain = append(preRetrain, url)
 			case "2":
-				url = "ws://" + items[0] + "/ws"
+				url = "tcp://" + items[0]
 				preRetrain = append(preRetrain, url)
 			}
 			if !gQueue.Contains(url) {

@@ -3,12 +3,13 @@ package main
 import (
 	"encoding/binary"
 	"flag"
-	"github.com/garyburd/redigo/redis"
-	"github.com/golang/glog"
 	"octopus/msgs"
 	"octopus/ver"
 	"os"
 	"runtime"
+
+	"github.com/garyburd/redigo/redis"
+	"github.com/golang/glog"
 	//	"strconv"
 	"strings"
 	"time"
@@ -47,11 +48,8 @@ func ChooseAUDPServer(mac []byte) (output []byte, addr string) {
 	}
 	//	glog.Infof("addr:",addr)
 	//	glog.Infof("gIPS:",gIPS[addr])
-	addr = strings.Replace(addr, addr, gIPS[addr], 1)
+	//	addr = strings.Replace(addr, addr, gIPS[addr], 1)
 
-	if !strings.HasSuffix(addr, "/ws") {
-		addr = "udp://" + addr
-	}
 	//	adr := strings.Split(addr, ":")
 	//	glog.Infof("%v",adr)
 	//	if len(adr) != 2 {
