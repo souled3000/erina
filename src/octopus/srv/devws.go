@@ -2,7 +2,7 @@ package srv
 
 import (
 	"octopus/msgs"
-	"octopus/websocket"
+	"cloud-base/websocket"
 	"time"
 
 	"github.com/golang/glog"

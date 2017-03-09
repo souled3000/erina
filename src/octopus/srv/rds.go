@@ -366,12 +366,12 @@ func GetDevLogCode(mac string) string {
 func UpdateDevAdr(sess *DevSession) {
 	r := Redix.Get()
 	defer r.Close()
-	r.Do("hset", DEVADRKEY, fmt.Sprintf("%d", sess.devId), sess.adr)
+	r.Do("hset", DEVADRKEY, fmt.Sprintf("%d", sess.devId), fmt.Sprintf("%d|%s", SrvType, sess.adr))
 }
 func SetDevAdr(id int64, adr string) {
 	r := Redix.Get()
 	defer r.Close()
-	r.Do("hset", DEVADRKEY, fmt.Sprintf("%d|%d", id), SrvType, adr)
+	r.Do("hset", DEVADRKEY, fmt.Sprintf("%d", id), fmt.Sprintf("%d|%s", SrvType, adr))
 }
 func DelDevAdr(devs []int64) {
 	r := Redix.Get()
@@ -383,7 +383,7 @@ func DelDevAdr(devs []int64) {
 func PushDevOnlineMsgToUsers(sess *DevSession) {
 	r := Redix.Get()
 	defer r.Close()
-	r.Do("hset", DEVADRKEY, fmt.Sprintf("%d", sess.devId), sess.udpAdr.String())
+	r.Do("hset", DEVADRKEY, fmt.Sprintf("%d", sess.devId), fmt.Sprintf("%d|%s", SrvType, sess.udpAdr.String()))
 	if len(sess.users) == 0 {
 		if glog.V(3) {
 			glog.Infof("[PUBDEVONLINEMSG] %s dev {%v} can't send to usr:{%v} for dev online msg, dest is empty", sess.sid, sess.devId, sess.users)

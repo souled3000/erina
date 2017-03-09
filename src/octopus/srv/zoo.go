@@ -225,7 +225,6 @@ func loop() {
 				glog.Errorf("[stat|usage] get meminfo from /proc/meminfo failed: %v", err)
 			}
 			handle := statGetConnOnline()
-			glog.Infof("FH:%v", handle)
 			for path, s := range cometPath {
 				if !s.Ok {
 					continue

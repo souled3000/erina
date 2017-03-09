@@ -94,8 +94,9 @@ func (this *myServer) RunLoop() bool {
 		//		timestamp:=p[4:8]
 		pMac := make([]byte, 8)
 		binary.LittleEndian.PutUint64(pMac, uint64(m.FHSrcId))
-		if len(m.Text) < 16 {
+		if len(m.Text) < 17 {
 			glog.Infof("This mac is too short to handle. %x", m.Text)
+			continue
 		}
 		pMacMd5 := m.Text[:16]
 		//		macmd5 := begmd5(pMac)

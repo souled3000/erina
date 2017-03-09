@@ -84,7 +84,7 @@ func binary2msg() {
 	glog.Infof("%s", "begging")
 	m := new(msgs.Msg)
 	m.MZ, _ = hex.DecodeString("e9b2205c80bdfe708e04742a9216e76e")
-	mb, _ := hex.DecodeString("c500010012f9e13433cbed061ecbed06193412f9e13412f9e33403f9ea3446f400000000000000006d6408000011010000001a")
+	mb, _ := hex.DecodeString("c5000000294d01005f0000294d0100294d01b0fcd062f5fc0b0155294501ce2aef0479c537fd44a2275b7ed0d3a50c90")
 	m.Final = mb
 	e := m.Binary2Msg()
 	fmt.Printf("%v\n", e)

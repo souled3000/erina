@@ -5,7 +5,7 @@ import (
 
 	"fmt"
 	"octopus/msgs"
-	"octopus/websocket"
+	"cloud-base/websocket"
 
 	"github.com/golang/glog"
 	//"strings"

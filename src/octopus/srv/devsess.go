@@ -8,7 +8,7 @@ import (
 	"github.com/golang/glog"
 	"net"
 	"octopus/msgs"
-	"octopus/websocket"
+	"cloud-base/websocket"
 	"strings"
 	"sync"
 	"time"

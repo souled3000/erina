@@ -183,6 +183,7 @@ func opcode05(m *msgs.Msg, sess *DevSession) (*DevSession, string, error) {
 		return nil, m.FHSrcMac, fmt.Errorf("MZ is nil")
 	}
 
+	m.Binary2Msg()
 	if SrvType == CometUdp {
 		sess, err = Byte2Sess(m.DHSessionId)
 		if err != nil {

@@ -38,17 +38,11 @@ func onSess(t *DevRequest) ([]byte, error) {
 	//local judgement wether the mac has been existed.
 	if v, ok := DevSessions.Macs[m.FHSrcMac]; ok {
 		if v.offlineEvent != nil {
-			if glog.V(5) {
-				glog.Infof("[CmdSess] %s %s was killed.", v.mac, v.sid)
-			}
 			v.offlineEvent.Reset(0 * time.Second)
 		} else {
 			DevSessions.delSessionByMac(&m.FHSrcMac)
 		}
 	} else {
-		if glog.V(5) {
-			glog.Infof("[CmdSess] %s is new.", m.FHSrcMac)
-		}
 		//if there isn't mac on local then push a msg to cluster.
 		go PubNewUdpSessChannel(m.FHSrcMac, *SentinelAdr)
 	}
@@ -60,9 +54,6 @@ func onSess(t *DevRequest) ([]byte, error) {
 	binary.LittleEndian.PutUint32(output[:4], 0) //返回结果
 	copy(output[4:12], sid)                      //把sid传给板子
 	copy(output[12:20], sid)                     //把sid传给板子
-	if glog.V(5) {
-		glog.Infof("[CmdSess] MAC:%s,SID:%s", s.mac, s.sid)
-	}
 	return output, nil
 }
 

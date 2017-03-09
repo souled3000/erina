@@ -11,7 +11,7 @@ import (
 	"github.com/golang/glog"
 	aes "octopus/common/aes"
 	"octopus/msgs"
-	"octopus/websocket"
+	"cloud-base/websocket"
 	"strconv"
 	"strings"
 	"sync"

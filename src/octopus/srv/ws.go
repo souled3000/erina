@@ -9,7 +9,7 @@ import (
 	"net"
 	"net/http"
 	"octopus/msgs"
-	"octopus/websocket"
+	"cloud-base/websocket"
 	"time"
 )
 
@@ -77,7 +77,6 @@ func dgw(ws *gw.Conn) {
 	defer devLogout(ms, err)
 	go writer(ms)
 start:
-
 	_, req, err := ws.ReadMessage()
 	if err != nil {
 		glog.Errorf("[dw:err] %s error(%v)", ms.adr, err)
