@@ -218,7 +218,7 @@ func LaunchDevSrv() {
 	glog.Error(err)
 	for {
 		client, er := server.AcceptTCP()
-		d := time.Now().Add(120 * time.Second)
+		d := time.Now().Add(UdpTimeout * time.Second)
 		client.SetReadDeadline(d)
 		if err != nil {
 			glog.Error(er)
@@ -258,9 +258,9 @@ func busiDeal(ws *net.TCPConn) {
 	defer devLogout(ms, err)
 	go tcpWriter(ms)
 start:
-	req, err := readFrame(ws)
-	d := time.Now().Add(120 * time.Second)
+	d := time.Now().Add(UdpTimeout * time.Second)
 	ws.SetReadDeadline(d)
+	req, err := readFrame(ws)
 	if err != nil {
 		glog.Errorf("[dw:err] %s error(%v)", ms.adr, err)
 		return
@@ -319,7 +319,7 @@ start:
 			glog.Errorf("[dw:err] %s error(%v)", ms.adr, err)
 			return
 		}
-		d := time.Now().Add(120 * time.Second)
+		d := time.Now().Add(UdpTimeout * time.Second)
 		ws.SetReadDeadline(d)
 		ms.lastHeartbeat = time.Now()
 		m := &msgs.Msg{}
@@ -353,8 +353,9 @@ start:
 }
 func readFrame(c *net.TCPConn) (frame []byte, err error) {
 	head := make([]byte, 8)
+	var n int
 	//	n, err := c.Read(head)
-	n, err := io.ReadFull(c, head)
+	n, err = io.ReadFull(c, head)
 	if err != nil {
 		glog.Error(err)
 		return
@@ -373,6 +374,7 @@ loop:
 			head = head[i+1:]
 
 			if err != nil {
+				glog.Error(err)
 				return
 			}
 			head = append(head, one...)
@@ -386,7 +388,6 @@ loop:
 	bdl := make([]byte, 2)
 	//	_, err = c.Read(bdl)
 	_, err = io.ReadFull(c, bdl)
-	glog.Infof("len: %x", bdl)
 	if err != nil {
 		glog.Error(err)
 		return

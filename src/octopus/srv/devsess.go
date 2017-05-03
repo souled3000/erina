@@ -1,6 +1,7 @@
 package srv
 
 import (
+	"cloud-base/websocket"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -8,7 +9,6 @@ import (
 	"github.com/golang/glog"
 	"net"
 	"octopus/msgs"
-	"cloud-base/websocket"
 	"strings"
 	"sync"
 	"time"
@@ -42,7 +42,7 @@ type DevSession struct {
 	killchan chan *KillEvent
 	syncchan chan int
 	killer   *DevSession
-
+	beKilled bool
 	gws      *gw.Conn
 	gwclient chan *[]byte
 
@@ -55,7 +55,7 @@ type KillEvent struct {
 
 func newDevTcpSession(ws *net.TCPConn) *DevSession {
 	u := &DevSession{
-		client:           ws,
+		client:        ws,
 		gwclient:      make(chan *[]byte, 10000),
 		adr:           ws.RemoteAddr().String(),
 		lastHeartbeat: time.Now(),

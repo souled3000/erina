@@ -36,21 +36,30 @@ func onSess(t *DevRequest) ([]byte, error) {
 	// }
 
 	//local judgement wether the mac has been existed.
+
+	var s *DevSession
+
+	glog.Infof("CmdSess %s,%x beg SESS", m.FHSrcMac, mac)
+
+	var sid []byte
 	if v, ok := DevSessions.Macs[m.FHSrcMac]; ok {
-		if v.offlineEvent != nil {
-			v.offlineEvent.Reset(0 * time.Second)
-		} else {
-			DevSessions.delSessionByMac(&m.FHSrcMac)
-		}
+		//		if v.offlineEvent != nil {
+		//			v.offlineEvent.Reset(0 * time.Second)
+		//		} else {
+		//			DevSessions.delSessionByMac(&m.FHSrcMac)
+		//		}
+		glog.Warningf("CmdSess OLD， %s repeatly invoke OnSess, return current sess :%s", v)
+		sid = v.getSid()
 	} else {
-		//if there isn't mac on local then push a msg to cluster.
-		go PubNewUdpSessChannel(m.FHSrcMac, *SentinelAdr)
+		//if there isn't mac on local then pushing a msg to cluster.
+		PubNewUdpSessChannel(m.FHSrcMac, *SentinelAdr)
+		s = newDevSession(t.Peer)
+		s.mac = m.FHSrcMac
+		sid = s.getSid()
+		DevSessions.add(s)
+		glog.Infof("CmdSess NEW %s", s)
 	}
 
-	s := newDevSession(t.Peer)
-	s.mac = m.FHSrcMac
-	sid := s.getSid()
-	DevSessions.add(s)
 	binary.LittleEndian.PutUint32(output[:4], 0) //返回结果
 	copy(output[4:12], sid)                      //把sid传给板子
 	copy(output[12:20], sid)                     //把sid传给板子
@@ -168,9 +177,8 @@ func onLogin(sess *DevSession, m *msgs.Msg) ([]byte, error, int32) {
 						if isFirstLogin {
 							//it is the first time assigning sess.DevId
 							sess.devId = id
-
 							if SrvType == CometDw {
-								go PubNewUdpSessChannel(sess.mac, *SentinelAdr)
+								PubNewUdpSessChannel(sess.mac, *SentinelAdr)
 								go func() {
 									/**监听设备重复登录**/
 									for ke := range sess.killchan {
@@ -181,6 +189,7 @@ func onLogin(sess *DevSession, m *msgs.Msg) ([]byte, error, int32) {
 										case 0:
 											glog.Infof("%s is killing %s", ke.killer.adr, sess.adr)
 											sess.killer = ke.killer
+											sess.client.SetLinger(-1)
 											sess.client.Close()
 										}
 									}
@@ -232,7 +241,7 @@ func onLogin(sess *DevSession, m *msgs.Msg) ([]byte, error, int32) {
 								}
 							}
 
-							go PushDevOnlineMsgToUsers(sess)
+							PushDevOnlineMsgToUsers(sess)
 							UpdateDevAdr(sess)
 						} else if sess.devId == id {
 							UpdateDevAdr(sess)
@@ -245,13 +254,15 @@ func onLogin(sess *DevSession, m *msgs.Msg) ([]byte, error, int32) {
 						} else if sess.devId != id {
 							subMac := hex.EncodeToString(body[0:8])
 							if subSess, ok := DevSessions.Sesses[id]; ok {
-								subdevlogout(subSess, id)
+								if subSess.sid != sess.sid {
+									subdevlogout(subSess, id)
+								}
 							}
 							sess.stateLock.Lock()
 							if _, ok := sess.devs[id]; !ok {
 								GDV.writeGDV(id, dvbigendian)
 								PubZiDevOnlineChannel(fmt.Sprintf("%d,%s", id, MEKEY))
-
+								time.Sleep(300 * time.Millisecond)
 								sess.devs[id] = subMac
 								sess.macs[subMac] = id
 
@@ -306,7 +317,7 @@ func onLogin(sess *DevSession, m *msgs.Msg) ([]byte, error, int32) {
 		}
 	}
 	binary.LittleEndian.PutUint32(output[0:4], uint32(status))
-	output[12] = kHeartBeatSec
+	output[12] = byte(UdpTimeout)
 	devLogCode := GetDevLogCode(sess.mac)
 	if devLogCode != "" {
 		dlc, _ := strconv.Atoi(devLogCode)
@@ -329,11 +340,12 @@ func onSL(sess *DevSession, req *msgs.Msg) ([]byte, error) {
 	body := req.Text
 	subMac := hex.EncodeToString(body[0:8])
 	sess.stateLock.Lock()
+	defer sess.stateLock.Unlock()
 	if id, ok = sess.macs[subMac]; !ok {
 		if id, ok = MAC2ID[subMac]; !ok {
 			id, _, err = getDevIdByMac(subMac)
 			if err != nil {
-				return nil, fmt.Errorf("[err] can't got devid by mac %s", subMac)
+				return nil, fmt.Errorf("[err] can't got devid by mac %s,%v", subMac, err)
 			}
 		}
 		PubZiDevOnlineChannel(fmt.Sprintf("%d,%s", id, MEKEY))
@@ -358,7 +370,6 @@ func onSL(sess *DevSession, req *msgs.Msg) ([]byte, error) {
 		}
 		//return nil, fmt.Errorf("subdev login redundantly: %x,%d  parent %s,%d", body[0:8], id, sess.Mac, sess.DevId)
 	}
-	sess.stateLock.Unlock()
 
 	out := make([]byte, 12)
 	copy(out[4:12], body[0:8])
@@ -371,19 +382,11 @@ func onLog(req *msgs.Msg) ([]byte, error) {
 		return nil, fmt.Errorf("req's length = %v, but the number of log is %v", len(req.Text), n)
 	}
 	binary.LittleEndian.PutUint32(output[0:4], uint32(0))
-	copy(output[4:8], req.Text[n*8+1:n*8+8+1])
+	copy(output[4:8], req.Text[n*8+1:n*8+4+1])
 	LogHdl.Deal(req)
 	return output, nil
 }
 func onHearBeat(sess *DevSession, m *msgs.Msg) ([]byte, error) {
-	if sess.isFirstBeat {
-		//		for offlineMsg := popOfflineMsg(sess.DevId); offlineMsg != nil; offlineMsg = popOfflineMsg(sess.DevId) {
-		//			UdpSessions.PushMsg(sess.DevId, offlineMsg)
-		//			glog.Infof("DEVOFFLINEMSG:%x", offlineMsg)
-		//		}
-	} else {
-		sess.isFirstBeat = false
-	}
 	output := make([]byte, 17)
 	binary.LittleEndian.PutUint32(output[:4], 0)
 	mac, _ := hex.DecodeString(sess.mac)
@@ -522,9 +525,9 @@ func subdevlogout(sess *DevSession, id int64) {
 		PushSubDevOnOfflineMsgToUsers(sess, id, 1)
 
 		DevSessions.Devlk.Lock()
+		defer DevSessions.Devlk.Unlock()
 		delete(DevSessions.Sesses, id)
 		delete(DevSessions.Macs, subMac)
-		defer DevSessions.Devlk.Unlock()
 
 		if glog.V(5) {
 			glog.Infof("subdev logout:%s,%v,%s,%v Macs:%v sub:%d,%s", sess.mac, sess.devId, sess.sid, sess.udpAdr.String(), sess.macs, id, subMac)
@@ -541,20 +544,17 @@ func assignOffline(s *DevSession, err error) {
 }
 
 func devLogout(sess *DevSession, err error) {
-	devs := make([]int64, 0)
 
 	if sess.devId == 0 {
 		goto final
 	}
 	PushDevOfflineMsgToUsers(sess)
-
 	DevSessions.Devlk.Lock()
 	defer DevSessions.Devlk.Unlock()
 
 	sess.stateLock.Lock()
 	for k, v := range sess.devs {
 		LogWriter.Log(k, v, GDV.getDv(k), LOGTYPE_LOGOUT)
-		devs = append(devs, k)
 		Logout(k, *SentinelAdr)
 		delete(sess.macs, v)
 		delete(sess.devs, k)
@@ -567,16 +567,14 @@ func devLogout(sess *DevSession, err error) {
 	}
 	sess.stateLock.Unlock()
 
-	DelDevAdr(devs)
 	delete(DevSessions.Sesses, sess.devId)
 	delete(DevSessions.Sids, sess.sid)
 	delete(DevSessions.MacSid, sess.mac)
-	if v, ok := DevSessions.Macs[sess.mac]; ok {
-		if v.sid == sess.sid {
-			delete(DevSessions.Macs, sess.mac)
-		}
+	delete(DevSessions.Macs, sess.mac)
+
+	if sess.beKilled == false {
+		Logout(sess.devId, *SentinelAdr)
 	}
-	Logout(sess.devId, *SentinelAdr)
 	LogWriter.Log(sess.devId, sess.mac, GDV.getDv(sess.devId), LOGTYPE_LOGOUT)
 	statDecConnOnline()
 
@@ -591,7 +589,7 @@ final:
 	if sess.killer != nil {
 		sess.killer.syncchan <- 0
 	}
-	if sess.gwclient!=nil{
+	if sess.gwclient != nil {
 		close(sess.gwclient)
 	}
 }

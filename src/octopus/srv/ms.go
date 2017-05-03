@@ -219,6 +219,24 @@ func (this *UsrSessionPool) OffliningUsr(uid int64) {
 		glog.Infof("[OFFLINE USR] Done. usr:%v", uid)
 	}
 }
+func (this *UsrSessionPool) KafkaPushMsg(uid int64, data []byte) {
+	var err error
+	if s, ok := this.Sesses[uid]; ok {
+		_, err = s.ws.Write(data)
+		if err != nil {
+			glog.Errorf("[WSPUSH] FAILED! usr:%d,%v,%x,%v", s.uid, len(data), data, err)
+		} else {
+			statIncDownStreamOut()
+			if glog.V(3) {
+				glog.Infof("[WSPUSH] DONE! usr:%d, data: (len %d)%x", s.uid, len(data), data)
+			}
+		}
+	} else {
+		if glog.V(3) {
+			glog.Infof("[WSPUSH] FAIL! usr:%d|%d|%x", uid, len(data), data)
+		}
+	}
+}
 func (this *UsrSessionPool) PushMsg(uid int64, data []byte) {
 	var err error
 	if s, ok := this.Sesses[uid]; ok {

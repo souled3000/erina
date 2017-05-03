@@ -17,7 +17,16 @@ func main() {
 	flag.Parse()
 	glog.CopyStandardLogTo("INFO")
 	defer glog.Flush()
-	binary2msg()
+
+	fmt.Println(int64(1e6 / 1))
+	fmt.Println(1e6)
+	for a := 0; a < 3; a++ {
+		var b int
+		fmt.Println(b)
+		b = b + 1
+		fmt.Println(b)
+	}
+	f()
 	//	begId()
 	//	testaes()
 }
@@ -68,9 +77,15 @@ func f() {
 	n.DHRead = m.DHRead
 	n.DHRead = m.DHRead
 	n.Text = m.Text
+	n.FHDstId = 0
 	n.Msg2Binary()
 	fmt.Printf("%x\n", n.Final)
-	fmt.Printf("%s\n", n.String())
+	n.FHDstId = 1
+	n.Msg2Binary()
+	fmt.Printf("%x\n", n.Final)
+	n.FHDstId = 2
+	n.Msg2Binary()
+	fmt.Printf("%x\n", n.Final)
 }
 func testaes() {
 	key, _ := hex.DecodeString("1bd095db70793c9a6492bc45097d9e4d")
@@ -84,7 +99,7 @@ func binary2msg() {
 	glog.Infof("%s", "begging")
 	m := new(msgs.Msg)
 	m.MZ, _ = hex.DecodeString("e9b2205c80bdfe708e04742a9216e76e")
-	mb, _ := hex.DecodeString("c5000000294d01005f0000294d0100294d01b0fcd062f5fc0b0155294501ce2aef0479c537fd44a2275b7ed0d3a50c90")
+	mb, _ := hex.DecodeString("8500000057cd1a00e9000000000000000000007e56506e2c000030000200c55e00000000000000000001")
 	m.Final = mb
 	e := m.Binary2Msg()
 	fmt.Printf("%v\n", e)

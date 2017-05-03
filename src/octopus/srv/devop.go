@@ -49,6 +49,9 @@ func opcode02(t *DevRequest, sess *DevSession) (*DevSession, string, error, stri
 			return nil, m.FHSrcMac, err, "", nil
 		}
 	}
+	if m.DHMsgId != 0xc1 && m.DHMsgId != 0xc2 && m.DHMsgId != 0xc3 && sess.devId == 0 {
+		return nil, m.FHSrcMac, fmt.Errorf("%s haven't logined", sess), "", nil
+	}
 	switch m.DHMsgId {
 	case CmdSess:
 		ret.Text, err = onSess(t)

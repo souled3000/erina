@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
+	"time"
 )
 
 func main() {
@@ -14,15 +16,19 @@ func main() {
 		go func(c *net.TCPConn) {
 			m := make([]byte, 64)
 			for {
-				n, e := c.Read(m)
+				//				n, e := c.Read(m)
+				n, e := io.ReadFull(client, m)
 				fmt.Printf("R:%s %d %x %v\n", c.RemoteAddr().String(), n, m[0:n], e)
 				if e != nil {
 					fmt.Println(e)
+					c.SetLinger(0)
 					c.Close()
 					break
 				}
 			}
 		}(client)
+		time.Sleep(3 * time.Second)
+		client.Close()
 	}
 }
 

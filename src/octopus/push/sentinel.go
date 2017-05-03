@@ -30,37 +30,38 @@ type Monitor struct {
 
 func (this *SentinelMgr) doesExsist(id int64) bool {
 	var b bool
-	var t int
 	var srv string
-	if id > 0 {
-		t = 0
-	} else {
-		t = 1
-	}
-	this.mu.Lock()
-	defer this.mu.Unlock()
+//	var t int
+//	if id > 0 {
+//		t = 0
+//	} else {
+//		t = 1
+//	}
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 	if _, ok := this.sentinels[this.usr2sentinel[id]]; ok {
 		return true
 	} else {
-		srv := getSrvById(id)
-		if srv != "" {
-			if s, ok := this.sentinels[srv]; ok {
-				_, err := s.Con.Write([]byte{0x00, 0x00, 0x00, 0x00})
-				if err == nil {
-					b = true
-				} else {
-					if this.add(srv, t) {
-						b = true
-					} else {
-						delete(this.sentinels, srv)
-					}
-				}
-			} else {
-				if this.add(srv, t) {
-					b = true
-				}
-			}
-		}
+		return false
+//		srv := getSrvById(id)
+//		if srv != "" {
+//			if s, ok := this.sentinels[srv]; ok {
+//				_, err := s.Con.Write([]byte{0x00, 0x00, 0x00, 0x00})
+//				if err == nil {
+//					b = true
+//				} else {
+//					if this.add(srv, t) {
+//						b = true
+//					} else {
+//						delete(this.sentinels, srv)
+//					}
+//				}
+//			} else {
+//				if this.add(srv, t) {
+//					b = true
+//				}
+//			}
+//		}
 	}
 	if b {
 		this.usr2sentinel[id] = srv

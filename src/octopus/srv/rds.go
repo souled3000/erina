@@ -53,6 +53,7 @@ if tonumber(KEYS[2]) > 0 then
 	redis.call('hdel','m:srv',KEYS[2])
 	redis.call('hdel','m:id',KEYS[2])
 end
+return true
 `
 )
 
@@ -167,13 +168,14 @@ func Sub() {
 							//p[1]:mac
 							if p[0] != *SentinelAdr {
 								if sess, ok := DevSessions.Macs[p[1]]; ok {
+									sess.beKilled = true
 									if SrvType == CometUdp {
 										if sess.offlineEvent != nil {
 											sess.offlineEvent.Reset(0)
 										}
 									}
 									if SrvType == CometDw {
-										sess.ws.Close()
+										sess.client.Close()
 									}
 									if glog.V(3) {
 										glog.Infof("[NewDevSessChannel] %s %v's offline event done", p[0], p[1])
@@ -207,8 +209,8 @@ func Sub() {
 									go Logout(devId, *SentinelAdr)
 									delete(sess.macs, subMac)
 									delete(sess.devs, devId)
-									DelDevAdr([]int64{devId})
-									PushSubDevOnOfflineMsgToUsers(sess, devId, 1)
+									//									DelDevAdr([]int64{devId})
+									//									PushSubDevOnOfflineMsgToUsers(sess, devId, 1)
 									if glog.V(5) {
 										glog.Infof("[ZiDevOnline] subdev logout:%s,%v,%s,%v Macs:%v subdev:%d,%s", sess.mac, sess.devId, sess.sid, sess.udpAdr.String(), sess.macs, devId, subMac)
 									}
@@ -383,7 +385,6 @@ func DelDevAdr(devs []int64) {
 func PushDevOnlineMsgToUsers(sess *DevSession) {
 	r := Redix.Get()
 	defer r.Close()
-	r.Do("hset", DEVADRKEY, fmt.Sprintf("%d", sess.devId), fmt.Sprintf("%d|%s", SrvType, sess.udpAdr.String()))
 	if len(sess.users) == 0 {
 		if glog.V(3) {
 			glog.Infof("[PUBDEVONLINEMSG] %s dev {%v} can't send to usr:{%v} for dev online msg, dest is empty", sess.sid, sess.devId, sess.users)
@@ -391,26 +392,40 @@ func PushDevOnlineMsgToUsers(sess *DevSession) {
 		return
 	}
 	var DevOnlineMsg []byte
-	var strIds []string
-	for _, v := range sess.users {
-		strIds = append(strIds, fmt.Sprintf("%d", v))
-	}
-	userIds := strings.Join(strIds, ",") + "|"
-	DevOnlineMsg = append(DevOnlineMsg, []byte(userIds)...)
+	//	var strIds []string
+	//	for _, v := range sess.users {
+	//		strIds = append(strIds, fmt.Sprintf("%d", v))
+	//	}
+	//	userIds := strings.Join(strIds, ",") + "|"
+	//	DevOnlineMsg = append(DevOnlineMsg, []byte(userIds)...)
 	DevOnlineMsg = append(DevOnlineMsg, byte(9 /**上线标识*/))
 	b_buf := bytes.NewBuffer([]byte{})
 	binary.Write(b_buf, binary.LittleEndian, sess.devId)
 	DevOnlineMsg = append(DevOnlineMsg, b_buf.Bytes()...)
 	DevOnlineMsg = append(DevOnlineMsg, byte(1 /**内容长度*/))
 	DevOnlineMsg = append(DevOnlineMsg, byte(SrvType))
-	r.Do("publish", []byte("PubCommonMsg:0x35"), DevOnlineMsg)
+	msg := &msgs.Msg{}
+	msg.FHMask = true
+	msg.FHTime = uint32(time.Now().Unix())
+	msg.Text = DevOnlineMsg
+	msg.FHFin = true
+	msg.FHReserve = 0
+	msg.FHOpcode = 2
+	msg.DHMsgId = uint16(0x35)
+	for _, v := range sess.users {
+		msg.FHDstId = v
+		//			msg.DHKeyLevel = 1
+		msg.Msg2Binary()
+		GSentinelMgr.Forward([]int64{v}, msg.Final)
+	}
+	//	r.Do("publish", []byte("PubCommonMsg:0x35"), DevOnlineMsg)
 	if glog.V(3) {
 		glog.Infof("[PUBDEVONLINEMSG] %s dev[%v] send to usr[%v] for dev online msg, DONE", sess.sid, sess.devId, sess.users)
 	}
 }
 func PushDevOfflineMsgToUsers(sess *DevSession) {
-	r := Redix.Get()
-	defer r.Close()
+//	r := Redix.Get()
+//	defer r.Close()
 	for id, _ := range sess.devs {
 		r.Do("hdel", DEVADRKEY, fmt.Sprintf("%d", id))
 	}
@@ -421,26 +436,42 @@ func PushDevOfflineMsgToUsers(sess *DevSession) {
 		}
 		return
 	}
-	var strIds []string
-	for _, v := range sess.users {
-		strIds = append(strIds, fmt.Sprintf("%d", v))
-	}
-	userIds := strings.Join(strIds, ",") + "|"
+	//	var strIds []string
+	//	for _, v := range sess.users {
+	//		strIds = append(strIds, fmt.Sprintf("%d", v))
+	//	}
+	//	userIds := strings.Join(strIds, ",") + "|"
+
+	msg := &msgs.Msg{}
+	msg.FHMask = true
+	msg.FHTime = uint32(time.Now().Unix())
+	msg.FHFin = true
+	msg.FHReserve = 0
+	msg.FHOpcode = 2
+	msg.DHMsgId = uint16(0x35)
+
 	sess.stateLock.Lock()
 	defer sess.stateLock.Unlock()
 	sess.devs[sess.devId] = sess.mac
-	for id, mac := range sess.devs {
-		var DevOfflineMsg []byte
-		DevOfflineMsg = append(DevOfflineMsg, []byte(userIds)...)
-		DevOfflineMsg = append(DevOfflineMsg, byte(10 /**下线标识*/))
-		b_buf := bytes.NewBuffer([]byte{})
-		binary.Write(b_buf, binary.LittleEndian, id)
-		DevOfflineMsg = append(DevOfflineMsg, b_buf.Bytes()...)
-		DevOfflineMsg = append(DevOfflineMsg, byte(1 /**内容长度*/))
-		DevOfflineMsg = append(DevOfflineMsg, byte(SrvType))
-		r.Do("publish", []byte("PubCommonMsg:0x35"), DevOfflineMsg)
-		if glog.V(3) {
-			glog.Infof("[PUBDEVOFFLINEMSG] %v dev[%v][%v][%v] offline,informing usr%v DONE", sess.sid, sess.devId, id, mac, sess.users)
+	for _, v := range sess.users {
+		for id, mac := range sess.devs {
+			var DevOfflineMsg []byte
+			//			DevOfflineMsg = append(DevOfflineMsg, []byte(userIds)...)
+			DevOfflineMsg = append(DevOfflineMsg, byte(10 /**下线标识*/))
+			b_buf := bytes.NewBuffer([]byte{})
+			binary.Write(b_buf, binary.LittleEndian, id)
+			DevOfflineMsg = append(DevOfflineMsg, b_buf.Bytes()...)
+			DevOfflineMsg = append(DevOfflineMsg, byte(1 /**内容长度*/))
+			DevOfflineMsg = append(DevOfflineMsg, byte(SrvType))
+
+			msg.FHDstId = v
+			msg.Text = DevOfflineMsg
+			msg.Msg2Binary()
+			GSentinelMgr.Forward([]int64{v}, msg.Final)
+			//			r.Do("publish", []byte("PubCommonMsg:0x35"), DevOfflineMsg)
+			if glog.V(3) {
+				glog.Infof("[PUBDEVOFFLINEMSG] %v dev[%v][%v][%v] offline,informing usr%v DONE", sess.sid, sess.devId, id, mac, sess.users)
+			}
 		}
 	}
 	delete(sess.devs, sess.devId)
@@ -455,12 +486,13 @@ func PushSubDevOnOfflineMsgToUsers(sess *DevSession, id int64, flag int) {
 		return
 	}
 	var DevOfflineMsg []byte
-	var strIds []string
-	for _, v := range sess.users {
-		strIds = append(strIds, fmt.Sprintf("%d", v))
-	}
-	userIds := strings.Join(strIds, ",") + "|"
-	DevOfflineMsg = append(DevOfflineMsg, []byte(userIds)...)
+	//	var strIds []string
+	//	for _, v := range sess.users {
+	//		strIds = append(strIds, fmt.Sprintf("%d", v))
+	//	}
+	//	userIds := strings.Join(strIds, ",") + "|"
+	//	DevOfflineMsg = append(DevOfflineMsg, []byte(userIds)...)
+
 	if flag == 0 {
 		DevOfflineMsg = append(DevOfflineMsg, byte(9 /**上线标识*/))
 	} else {
@@ -471,7 +503,21 @@ func PushSubDevOnOfflineMsgToUsers(sess *DevSession, id int64, flag int) {
 	DevOfflineMsg = append(DevOfflineMsg, b_buf.Bytes()...)
 	DevOfflineMsg = append(DevOfflineMsg, byte(1 /**内容长度*/))
 	DevOfflineMsg = append(DevOfflineMsg, byte(SrvType))
-	r.Do("publish", []byte("PubCommonMsg:0x35"), DevOfflineMsg)
+
+	msg := &msgs.Msg{}
+	msg.FHMask = true
+	msg.FHTime = uint32(time.Now().Unix())
+	msg.FHFin = true
+	msg.FHReserve = 0
+	msg.FHOpcode = 2
+	msg.Text = DevOfflineMsg
+	msg.DHMsgId = uint16(0x35)
+	for _, v := range sess.users {
+		msg.FHDstId = v
+		msg.Msg2Binary()
+		GSentinelMgr.Forward([]int64{v}, msg.Final)
+	}
+	//	r.Do("publish", []byte("PubCommonMsg:0x35"), DevOfflineMsg)
 	if glog.V(3) {
 		glog.Infof("[SUBDEVONOFF] dev[%v] flag[%d]<0:online;1:offline> usr%v DONE", id, flag, sess.users)
 	}
@@ -567,6 +613,9 @@ func HandleDeviceUsers(buf []byte) {
 	if SrvType == CometUdp {
 		go DevSessions.UpdateIds(DevId, userId, msgType != 0)
 	}
+	if SrvType == CometDw {
+		go DevSessions.UpdateIds(DevId, userId, msgType != 0)
+	}
 	if SrvType == CometWs {
 		go UsrSessions.UpdateIds(DevId, userId, msgType != 0)
 	}
@@ -595,6 +644,7 @@ func PubNewUdpSessChannel(mac, sentineladr string) {
 	r := Redix.Get()
 	defer r.Close()
 	r.Do("publish", NewDevSessChannel, fmt.Sprintf("%s,%s", sentineladr, mac))
+	glog.Infof("suicide %s,%s",mac,sentineladr)
 }
 func GotDevAddr(devId int64) string {
 	r := Redix.Get()
@@ -737,27 +787,6 @@ func ld2cfgList() ([]byte, error) {
 
 	return output, nil
 }
-
-//func ld2chain(origin []byte) ([]byte, error) {
-//	var output []byte
-//	var devs []byte
-//	r := Redix.Get()
-//	defer r.Close()
-//	chain, e := redis.String(r.Do("hget", "ld2chain", fmt.Sprintf("%x", origin)))
-//	switch {
-//	case e == nil:
-//		data, er := hex.DecodeString(chain)
-//		switch {
-//		case e == nil:
-//			return data, nil
-//		case e != nil:
-//			return nil, er
-//		}
-//	case e != nil:
-//		return nil, e
-//	}
-//
-//}
 
 func ld2ds(dmac string) ([]byte, error) {
 	devs := make([]byte, 4)

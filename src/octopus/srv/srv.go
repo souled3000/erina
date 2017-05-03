@@ -4,6 +4,7 @@ import (
 	"net"
 	"octopus/msgs"
 	"sync"
+	"time"
 )
 
 var (
@@ -18,7 +19,7 @@ var (
 	SrvType      CometType
 	SentinelAdr  *string
 	GMonitor     *Monitor
-	UdpTimeout   int64 = 125
+	UdpTimeout   time.Duration = 125
 	RedisAdr     string
 	UdpSrv       *UdpServer
 	DevSessions  = NewDevSessionPool()

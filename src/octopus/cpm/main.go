@@ -56,7 +56,7 @@ func main() {
 	//	flag.StringVar(&srv.MbPath, "mp", "PushServer", "zookeeper服务中WSCOMET所在的根节点名,mp=msgbus path")
 	srv.MbPath = cfg.GetString("mb", "PushServer")
 	//	flag.Int64Var(&srv.UdpTimeout, "uto", srv.UdpTimeout, "客户端UDP端口失效时长（秒)")
-	srv.UdpTimeout = cfg.GetInt64("uto", srv.UdpTimeout)
+	srv.UdpTimeout = time.Duration(cfg.GetInt64("uto",int64(srv.UdpTimeout)))
 	logTopic = cfg.GetString("logTopic", "his_dev")
 	srv.AUTHURL = cfg.GetString("authurl", "")
 	printVer := flag.Bool("ver", false, "Comet版本")
@@ -116,7 +116,7 @@ func main() {
 				if glog.V(5){
 					glog.Infof("%s %s->%d %x",data.Topic,m.FHSrcMac,m.FHDstId,data.Msg)
 				}
-				srv.UsrSessions.PushMsg(m.FHDstId, m.Final)
+				srv.UsrSessions.KafkaPushMsg(m.FHDstId, m.Final)
 			}
 		}()
 	case srv.CometUdp:

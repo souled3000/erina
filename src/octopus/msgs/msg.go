@@ -346,13 +346,13 @@ func (m *Msg) Binary2Msg() error {
 
 	// discard msg if found checking error
 	if m.DHHeadCheck != common.Crc(m.Final, offset+6) {
-		return fmt.Errorf("[MSG:02] checksum header error %v!=%v", m.DHHeadCheck, common.Crc(m.Final, offset+6))
+		return fmt.Errorf("[MSG:02] checksum header error %x!=%x", m.DHHeadCheck, common.Crc(m.Final, offset+6))
 	}
 	switch m.DHKeyLevel {
 	case 0:
 		m.DHSessionId = m.Final[offset+8 : offset+16]
 		if m.DHCheck != common.Crc(m.Final[offset+8:], len(m.Final[offset+8:])) {
-			return fmt.Errorf("body crc error %v!=%v", m.DHCheck, common.Crc(m.Final[offset+8:], len(m.Final[offset+8:])))
+			return fmt.Errorf("body crc error %x!=%x", m.DHCheck, common.Crc(m.Final[offset+8:], len(m.Final[offset+8:])))
 		}
 		if m.DHLength > 0 {
 			m.Text = m.Final[offset+DataHeaderLen:]
@@ -410,7 +410,7 @@ func (m *Msg) Binary2Msg() error {
 }
 
 //发送时用
-func (m *Msg) Msg2Binary() error{
+func (m *Msg) Msg2Binary() error {
 	m.Final = make([]byte, 0)
 	offset := FrameHeaderLen
 	if m.FHOpcode == 3 {
@@ -436,11 +436,12 @@ func (m *Msg) Msg2Binary() error{
 	buf[1] = m.FHReserve
 
 	binary.LittleEndian.PutUint16(buf[2:4], m.FHSequence)
-
-	a := time.Now().UnixNano() / 1e6
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, uint64(a))
-	m.FHTime = binary.BigEndian.Uint32(b[0:4])
+	if m.FHTime == 0 {
+		a := time.Now().UnixNano() / 1e6
+		b := make([]byte, 8)
+		binary.LittleEndian.PutUint64(b, uint64(a))
+		m.FHTime = binary.BigEndian.Uint32(b[0:4])
+	}
 	binary.LittleEndian.PutUint32(buf[4:8], m.FHTime)
 
 	binary.LittleEndian.PutUint64(buf[8:16], uint64(m.FHDstId))
@@ -510,12 +511,14 @@ func (m *Msg) Msg2Binary() error{
 				key[n] = x ^ m.MZ[n]
 			}
 			m.RKXORMZ = key
-			guid, err := aes.Encrypt(m.FHGuid, key)
-			if err != nil {
-				glog.Errorf("%v,%v", err, m.Final)
-			}
-			if m.FHGuid != nil {
-				copy(buf[FrameHeaderLen:offset], guid)
+			if m.FHOpcode == 3 {
+				guid, err := aes.Encrypt(m.FHGuid, key)
+				if err != nil {
+					glog.Errorf("%v,%v", err, m.Final)
+				}
+				if m.FHGuid != nil {
+					copy(buf[FrameHeaderLen:offset], guid)
+				}
 			}
 			cipher, err := aes.Encrypt(m.datacrc, key)
 			if err != nil {
