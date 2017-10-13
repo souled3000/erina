@@ -31,11 +31,6 @@ const (
 	MIDStatus        = 0x36
 )
 
-type encodec interface {
-	Msg2Binary()
-	Binary2Msg() error
-}
-
 type Msg struct {
 	//密证
 	MZ []byte

@@ -424,8 +424,8 @@ func PushDevOnlineMsgToUsers(sess *DevSession) {
 	}
 }
 func PushDevOfflineMsgToUsers(sess *DevSession) {
-//	r := Redix.Get()
-//	defer r.Close()
+	r := Redix.Get()
+	defer r.Close()
 	for id, _ := range sess.devs {
 		r.Do("hdel", DEVADRKEY, fmt.Sprintf("%d", id))
 	}
