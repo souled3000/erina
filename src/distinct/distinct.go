@@ -2,7 +2,7 @@ package main
 
 import (
 	"crypto/md5"
-	"encoding/hex"
+	//	"encoding/hex"
 	"fmt"
 	"os"
 )
@@ -15,7 +15,6 @@ var (
 )
 
 func main() {
-	fmt.Printf("Dealing Folder: %s", os.Args[1])
 	f, e := os.Open(os.Args[1])
 	if e == nil {
 		finfo, _ := f.Stat()
@@ -51,7 +50,7 @@ func recur(path string) {
 
 		// calulate md5 of each file
 		fmd5 := md5.Sum(buf)
-		fmt.Printf("%s\t:\t%s\n", hex.EncodeToString(buf[1000:1005]), hex.EncodeToString(fmd5[:]))
+		//		fmt.Printf("%s\t:\t%s\n", hex.EncodeToString(buf[1000:1005]), hex.EncodeToString(fmd5[:]))
 		// judge if the md5 has been in the map 'm'
 		// if it has been existed, deleting the file, otherwise storing the md5 into the map 'm'
 		if v, ok := m[fmd5]; ok {
