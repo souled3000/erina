@@ -5,6 +5,7 @@ import (
 	//	"encoding/hex"
 	"fmt"
 	"os"
+	"path/filePath"
 )
 
 var (
@@ -14,12 +15,20 @@ var (
 	x   int
 )
 
+func getCurrentDirectory() string {
+	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	return dir
+}
 func main() {
-	f, e := os.Open(os.Args[1])
+	var pr string
+	if len(os.Args) == 1 {
+		pr = getCurrentDirectory()
+	}
+	f, e := os.Open(pr)
 	if e == nil {
 		finfo, _ := f.Stat()
 		if finfo.IsDir() {
-			recur(os.Args[1])
+			recur(pr)
 		} else {
 			fmt.Println("we need a Folder!!")
 		}
