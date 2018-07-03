@@ -644,7 +644,7 @@ func PubNewUdpSessChannel(mac, sentineladr string) {
 	r := Redix.Get()
 	defer r.Close()
 	r.Do("publish", NewDevSessChannel, fmt.Sprintf("%s,%s", sentineladr, mac))
-	glog.Infof("suicide %s,%s",mac,sentineladr)
+	glog.Infof("suicide %s,%s", mac, sentineladr)
 }
 func GotDevAddr(devId int64) string {
 	r := Redix.Get()
