@@ -5,7 +5,7 @@ import (
 	//	"encoding/hex"
 	"fmt"
 	"os"
-	"path/filePath"
+	"path/filepath"
 )
 
 var (
