@@ -1,0 +1,1 @@
+We add mask control for code.google.com/p/go.net/websocket to allow our client using none mask connection.

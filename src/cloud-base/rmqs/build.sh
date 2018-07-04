@@ -1,0 +1,9 @@
+go install cloud-base/atomic
+go install cloud-base/crypto
+go install cloud-base/hlist
+go install cloud-base/rmqs
+go install cloud-base/sentinels
+go install cloud-base/status
+go install cloud-base/util
+go install cloud-base/websocket
+go install cloud-base/zk
